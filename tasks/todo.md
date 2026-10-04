@@ -1,8 +1,8 @@
-- [ ] Indicators and stream validation
-- [ ] Redis ingestion and REST recovery
-- [ ] Celery/PostgreSQL persistence
-- [ ] Identity and security tests
-- [ ] Reporting and API
-- [ ] Real infrastructure/runtime verification
-- [ ] CI/operations docs
-- [ ] Disabled app integration/regression verification
+- [x] Indicators and stream validation
+- [x] Redis ingestion and REST recovery
+- [x] Celery/PostgreSQL persistence
+- [x] Identity and security tests
+- [x] Reporting and API
+- [x] Real infrastructure/runtime verification
+- [x] CI/operations docs
+- [x] Disabled app integration/regression verification

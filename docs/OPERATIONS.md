@@ -1,0 +1,14 @@
+# Operations
+
+- Public Binance WebSocket endpoint uses port 443. REST repairs up to 400 candles per symbol at each reconnect. Binance server-time calibration handles host clock skew; monitor NTP in real deployments.
+- At most 20 explicitly configured USDT symbols. Redis stores 400 closed candles per symbol (about 100 hours), expires history after five days and ticker after 60 seconds. Redis AOF is enabled; `noeviction` fails explicitly instead of silently dropping broker jobs. Redis and PostgreSQL must not be shared with unrelated applications.
+- Worker state persists Wilder average gain/loss, previous close and timestamp. Retries and overlapping workers acquire per-symbol PostgreSQL transaction locks. Primary keys prevent duplicate candles. RSI warm-up is 14 changes. Historical rows are immutable once accepted.
+- Gaps outside recovery history halt processing with an explicit error. Never fill gaps with synthetic prices. Recover authentic historical candles in order or perform an explicit operator-approved isolated state rebuild. No automatic state reset.
+- Seven-day PostgreSQL retention is bounded to 10,000 candle deletes per hourly job. Refresh tokens cascade when expired sessions are deleted. Registered demo accounts require explicit removal; no production personal accounts should use the demo identity.
+- Run exactly one Beat scheduler. Worker processes can scale because PostgreSQL serializes per-symbol processing. In this small configuration use one worker process; API routes run blocking DB calls in FastAPI's thread pool. Enforce gateway connection/rate limits before internet exposure.
+- `/health/ready` covers dependencies, not market freshness. `/health/market` checks ingestion heartbeat (60s) and successful worker heartbeat (30m). Alerts should cover repeated `exchange_reconnect`, unavailable/stale market data, worker failures, Redis memory, DB volume and retention failures.
+- `docker compose --env-file .env.local logs --tail 100 ingester worker api` provides diagnostics. Logs never contain credentials or tokens; reconnect logs include exception type. `scripts/inspect_runtime.py` prints only public market data and health counts.
+- Stop: `docker compose --env-file .env.local --profile engine stop`. Resume: corresponding `up -d`. Avoid `down --volumes` unless intentionally destroying local data. Back up PostgreSQL before deploying any future schema change.
+- Deployment rollback: disable the app flag and restore the prior engine image. Engine data is separate; no Supabase rollback is needed. Existing auth, billing, usage limits and analysis functions remain unchanged.
+
+Before internet deployment: provision separate least-privilege DB credentials, HTTPS termination, exact CORS origins, gateway rate/body limits, secret storage and rotation, backups with tested restore, centralized logs and alerts. The optional identity remains a demo until account verification/recovery/privacy flows are implemented.

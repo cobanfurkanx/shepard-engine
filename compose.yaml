@@ -1,0 +1,83 @@
+name: shepard-engine
+
+x-engine: &engine
+  build: .
+  profiles: [engine]
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  mem_limit: 384m
+  cpus: 1.0
+  environment: &environment
+    ENGINE_DATABASE_URL: postgresql://engine:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/engine
+    ENGINE_REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD}@redis:6379/0
+    ENGINE_SYMBOLS: ${ENGINE_SYMBOLS:-BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT}
+    ENGINE_IDENTITY_ENABLED: ${ENGINE_IDENTITY_ENABLED:-false}
+    ENGINE_JWT_SECRET: ${ENGINE_JWT_SECRET:-}
+    ENGINE_ALLOWED_ORIGINS: ${ENGINE_ALLOWED_ORIGINS:-http://localhost:5173}
+  depends_on:
+    migrate: {condition: service_completed_successfully}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: engine
+      POSTGRES_DB: engine
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    mem_limit: 384m
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U engine -d engine"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, "yes", --maxmemory, 128mb,
+              --maxmemory-policy, noeviction, --requirepass, "${REDIS_PASSWORD:?Set REDIS_PASSWORD}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    ports: ["127.0.0.1:56379:6379"]
+    volumes: ["redis-data:/data"]
+    mem_limit: 192m
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  migrate:
+    <<: *engine
+    restart: "no"
+    command: [python, -m, shepard_engine.database]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  api:
+    <<: *engine
+    command: [uvicorn, shepard_engine.api:app, --host, "0.0.0.0", --port, "8080", --no-proxy-headers]
+    ports: ["127.0.0.1:58080:8080"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8080/health/ready')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  ingester:
+    <<: *engine
+    command: [python, -m, shepard_engine.ingestion]
+  worker:
+    <<: *engine
+    command: [celery, -A, shepard_engine.worker:app, worker, --loglevel=INFO, --concurrency=1]
+  beat:
+    <<: *engine
+    command: [celery, -A, shepard_engine.worker:app, beat, --loglevel=INFO, --schedule=/tmp/celerybeat-schedule]
+
+volumes:
+  postgres-data:
+  redis-data:
