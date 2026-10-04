@@ -33,8 +33,7 @@ def parse_event(event: dict, symbols: set[str], now_ms: int):
         event_ms = int(data["E"])
         if event_ms > now_ms + 5000 or now_ms - event_ms > 60_000:
             return None
-        return {"symbol": symbol, "price": number(data["c"], positive=True),
-                "event_ms": event_ms}
+        return {"symbol": symbol, "price": number(data["c"], positive=True), "event_ms": event_ms}
     if data.get("e") != "kline":
         return None
     kline = data["k"]

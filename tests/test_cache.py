@@ -8,8 +8,8 @@ from shepard_engine.market import Candle
 def test_cache_replaces_duplicate_candle_and_bounds_memory():
     cache = MarketCache(fakeredis.FakeRedis(decode_responses=True), history=3)
     for i in range(5):
-        cache.put_candle(Candle("BTCUSDT", i * 900000, 10+i, 100))
-    cache.put_candle(Candle("BTCUSDT", 4*900000, 15, 100))
+        cache.put_candle(Candle("BTCUSDT", i * 900000, 10 + i, 100))
+    cache.put_candle(Candle("BTCUSDT", 4 * 900000, 15, 100))
     assert [c.close for c in cache.candles("BTCUSDT")] == [12, 13, 15]
     assert cache.redis.ttl("engine:candles:BTCUSDT") > 0
 

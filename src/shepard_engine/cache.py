@@ -31,12 +31,23 @@ class MarketCache:
         self.history = history
 
     def put_candle(self, candle: Candle):
-        self.redis.eval(CANDLE_LUA, 1, f"engine:candles:{candle.symbol}", candle.open_ms,
-                        json.dumps(candle.to_dict()), self.history)
+        self.redis.eval(
+            CANDLE_LUA,
+            1,
+            f"engine:candles:{candle.symbol}",
+            candle.open_ms,
+            json.dumps(candle.to_dict()),
+            self.history,
+        )
 
     def put_ticker(self, ticker: dict):
-        self.redis.eval(TICKER_LUA, 1, f"engine:ticker:{ticker['symbol']}",
-                        ticker["event_ms"], json.dumps(ticker))
+        self.redis.eval(
+            TICKER_LUA,
+            1,
+            f"engine:ticker:{ticker['symbol']}",
+            ticker["event_ms"],
+            json.dumps(ticker),
+        )
 
     def ticker(self, symbol):
         raw = self.redis.get(f"engine:ticker:{symbol}")
@@ -45,7 +56,9 @@ class MarketCache:
     def candles(self, symbol) -> list[Candle]:
         rows = self.redis.zrange(f"engine:candles:{symbol}", 0, -1)
         candles = [Candle(**json.loads(row)) for row in rows]
-        if any(b.open_ms - a.open_ms != INTERVAL_MS for a, b in zip(candles, candles[1:])):
+        if any(
+            b.open_ms - a.open_ms != INTERVAL_MS for a, b in zip(candles, candles[1:], strict=False)
+        ):
             raise ValueError("candle history gap; recovery required")
         return candles
 

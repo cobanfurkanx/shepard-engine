@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     @classmethod
     def valid_symbols(cls, value):
         import re
+
         symbols = value.split(",")
         if len(symbols) > 20 or len(set(symbols)) != len(symbols):
             raise ValueError("use 1-20 unique symbols")

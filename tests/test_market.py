@@ -6,10 +6,21 @@ from shepard_engine.market import Candle, parse_event, rsi_series
 
 
 def candle_event(closed=True):
-    return {"e": "kline", "s": "BTCUSDT", "k": {
-        "t": 0, "T": 899999, "i": "15m", "x": closed,
-        "o": "10", "h": "12", "l": "9", "c": "11", "q": "100",
-    }}
+    return {
+        "e": "kline",
+        "s": "BTCUSDT",
+        "k": {
+            "t": 0,
+            "T": 899999,
+            "i": "15m",
+            "x": closed,
+            "o": "10",
+            "h": "12",
+            "l": "9",
+            "c": "11",
+            "q": "100",
+        },
+    }
 
 
 def test_only_closed_valid_candles():
@@ -30,8 +41,29 @@ def test_reject_corrupt_candles(field, value):
 
 
 def test_wilder_reference_and_warmup():
-    closes = [44.34,44.09,44.15,43.61,44.33,44.83,45.1,45.42,45.84,46.08,
-              45.89,46.03,45.61,46.28,46.28,46,46.03,46.41,46.22,45.64,46.21]
+    closes = [
+        44.34,
+        44.09,
+        44.15,
+        43.61,
+        44.33,
+        44.83,
+        45.1,
+        45.42,
+        45.84,
+        46.08,
+        45.89,
+        46.03,
+        45.61,
+        46.28,
+        46.28,
+        46,
+        46.03,
+        46.41,
+        46.22,
+        45.64,
+        46.21,
+    ]
     values = rsi_series(closes)
     assert values[:14] == [None] * 14
     assert values[14] == pytest.approx(70.464135, abs=1e-6)
