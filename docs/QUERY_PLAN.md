@@ -4,7 +4,7 @@ Local PostgreSQL, 53,760 synthetic candles (20 symbols, 28 days), five selected 
 
 Execution: 0.467 ms. Planning: 0.763 ms.
 
-The time-window covering index bounds the 48-hour input; the primary key provides uniqueness and ordered per-symbol state access. Complete-window and positive-volume filters preserve correctness before ranking. PostgreSQL may choose sequential scans on small tables.
+This run used a bitmap scan of candles_pkey, bounded by selected symbols and the 48-hour window. A separate time-window covering index is also available. Complete-window and positive-volume filters preserve correctness before ranking. PostgreSQL may choose sequential scans on small tables.
 
 Reproduce: `uv run python scripts/query_plan.py`.
 

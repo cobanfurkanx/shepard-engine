@@ -42,8 +42,9 @@ target.write_text(
     "Fixtures ran in engine_test and were rolled back. "
     "This is local evidence, not a production SLA.\n\n"
     f"Execution: {plan['Execution Time']:.3f} ms. Planning: {plan['Planning Time']:.3f} ms.\n\n"
-    "The time-window covering index bounds the 48-hour input; the primary key provides uniqueness "
-    "and ordered per-symbol state access. Complete-window and positive-volume filters preserve "
+    "This run used a bitmap scan of candles_pkey, bounded by selected symbols and the 48-hour "
+    "window. A separate time-window covering index is also available. Complete-window and "
+    "positive-volume filters preserve "
     "correctness before ranking. PostgreSQL may choose sequential scans on small tables.\n\n"
     "Reproduce: `uv run python scripts/query_plan.py`.\n\n```json\n"
     + json.dumps(plan, indent=2)
