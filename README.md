@@ -3,7 +3,19 @@
 [![Engine CI](https://github.com/cobanfurkanx/shepard-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/cobanfurkanx/shepard-engine/actions/workflows/ci.yml)
 [![Local branch coverage 96.15%](https://img.shields.io/badge/local_branch_coverage-96.15%25-brightgreen)](docs/VALIDATION.md)
 
-Independent public-market backend for [Shepard AI](https://github.com/cobanfurkanx/shepardai-crypto-advisor). No live orders. Existing Supabase Auth, billing and app analysis remain unchanged.
+Independent Python market-data backend for [Shepard AI](https://github.com/cobanfurkanx/shepardai-crypto-advisor), with FastAPI, Redis, Celery and PostgreSQL. Streams public Binance data, recovers closed candles after disconnections and persists them through idempotent background jobs. No live orders.
+
+## Engineering evidence
+
+| Capability | Implementation | Evidence |
+|---|---|---|
+| Data pipeline | WebSocket ingestion, Redis cache, 15-minute Celery jobs, PostgreSQL | 1,995 real candles persisted; repeat delivery inserted zero duplicates |
+| Independent identity | Optional JWT demo, Argon2id, refresh rotation and reuse revocation | PostgreSQL concurrency and session tests |
+| SQL analytics | Complete 24-hour windows, RSI crossings and >=50% volume growth | [Query and EXPLAIN ANALYZE](docs/QUERY_PLAN.md) |
+| Reliability | Freshness checks, bounded recovery, persistent volumes, restart recovery | [Runtime validation](docs/VALIDATION.md) |
+| Quality | 30 tests with real PostgreSQL/Redis integration; 85% branch-inclusive coverage gate | Recorded 96.15% coverage; [passing Linux CI](https://github.com/cobanfurkanx/shepard-engine/actions/runs/37201014783) |
+
+Measurements are dated validation results, not guaranteed latency or financial performance. The SQL benchmark used synthetic candles; the ingestion check used real public market data.
 
 ```mermaid
 flowchart LR
@@ -15,7 +27,8 @@ flowchart LR
   Redis --> API
   API --> Scanner[Optional scanner / disabled by default]
   Demo[Optional JWT identity demo] --> PG
-  App[Existing Shepard app] --> Supabase[Existing Supabase Auth / billing / analysis]
+  App[Shepard app] --> Supabase[Cloud or local Supabase Auth / analysis]
+  App -. optional scanner .-> API
 ```
 
 ## Run locally
@@ -51,7 +64,7 @@ uv build
 
 Integration tests use the separate `engine_test` database and Redis DB 15. They refuse other database names. The default coverage gate is **85%**, including branches and all engine modules. A suite without infrastructure intentionally cannot satisfy that gate.
 
-GitHub Actions workflow: `.github/workflows/ci.yml`. Before enabling it, configure `CI_DB_PASSWORD` as an Actions secret (random URL-safe hex). A GitHub passing badge is added only after the repository exists and its workflow succeeds; local test evidence is in [VALIDATION.md](docs/VALIDATION.md).
+GitHub Actions workflow: `.github/workflows/ci.yml`. CI creates isolated PostgreSQL and Redis services and uses a disposable per-run database credential; contributors and fork PRs need no repository secrets. CI never connects to production. Local test evidence is in [VALIDATION.md](docs/VALIDATION.md).
 
 ## API
 
@@ -74,6 +87,16 @@ The report counts transitions from RSI >=30 to <30 over the latest complete 24-h
 Concurrent use of the same refresh token is treated as reuse: exactly one rotation wins and the resulting family is then revoked. Clients must serialize refresh requests and require a fresh login after lost/replayed refresh responses. This deliberate strict policy is covered by concurrency tests.
 
 Tokens are returned as JSON for API demonstration. This module does not implement browser cookie sessions, email verification, password reset or Supabase migration; keep app authentication on Supabase.
+
+## Relationship to the hybrid app
+
+The app's hosted version uses Cloud Supabase; its local development mode uses a Docker-hosted Supabase stack. This independent engine is a separate optional market-data service, not a replacement for the app's Auth or account database. Local and Cloud app accounts are separate; this engine's optional identity demo is separate from both.
+
+The app also implements validated free-tier LLM fallback across Gemini, NVIDIA, OpenRouter and Groq. That router runs in the app's Edge Functions, not this engine. See the [hybrid guides](https://github.com/cobanfurkanx/shepardai-crypto-advisor/tree/main/docs) and [free LLM guide](https://github.com/cobanfurkanx/shepardai-crypto-advisor/blob/main/docs/FREE_LLM_FALLBACK_TR.md).
+
+## Security and disclosure
+
+Only public market data belongs in this repository. Runtime credentials are generated locally and excluded from Git; `.env.example` contains placeholders. See [SECURITY.md](SECURITY.md) for deployment boundaries and private vulnerability reporting.
 
 ## Operations and boundaries
 
